@@ -1,0 +1,540 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$defs:
+  LocalDateTime:
+    type: string
+    description: ISO 8601 local date and time without a UTC offset (assumed to always be Jerusalem time).
+    examples: ["2026-01-15T08:30:00"]
+  ApiResponse:
+    type: object
+    properties:
+      status: { type: boolean }
+      message: { type: string }
+      errorId: { type: string }
+      errorDescription: { type: string }
+      errorHTML: { type: string }
+  MenuCounters:
+    type: object
+    properties:
+      unreadMessages: { type: integer, example: 0 }
+      unreadNotifications: { type: integer, example: 0 }
+      unreadPedegogicalNotifications: { type: integer, example: 0 }
+      unreadSystemNotifications: { type: integer, example: 0 }
+      unreadPersonalNotifications: { type: integer, example: 0 }
+  LoginRequest:
+    type: object
+    required: [userName, password, data]
+    properties:
+      userName: { type: string }
+      password:
+        type: string
+        format: password
+      data:
+        type: string
+        contentEncoding: base64
+        description: |
+          Secret verified by the server.
+
+          You can obtain it with this JavaScript function reverse engineered from the official client's `RsaService`:
+          ```javascript
+          // counter here is supposed to increment on every login attempt,
+          // but it can just be 0 and not cause issues.
+          function encryptDataField(username, counter = 0) {
+            const smartKey = "01234567890000000150778345678901";
+            const initializationVector = CryptoJS.enc.Utf8.parse("6543210987654321");
+
+            const valueToEncrypt = JSON.stringify(`${username}${counter}`);
+            const encryptionKey = CryptoJS.enc.Utf8.parse(smartKey);
+
+            return CryptoJS.AES.encrypt(valueToEncrypt, encryptionKey, {
+              iv: initializationVector,
+              mode: CryptoJS.mode.CBC,
+              padding: CryptoJS.pad.Pkcs7
+            }).toString();
+          }
+          ```
+      captcha:
+        type: string
+        default: ""
+        description: Server accepts an empty string.
+      rememberMe:
+        type: boolean
+        default: false
+        description: Significantly extends the validity duration of the returned token. It is unknown how long exactly, but it seems to last weeks.
+      biometricLogin: { type: string, default: "" }
+      uniqueId: { type: string, default: "" }
+      deviceDataJson:
+        type: string
+        default: ""
+        description: Device data supplied as a JSON string. An empty string can be sent when device data is unavailable.
+  LoginData:
+    type: object
+    required: [userId, firstName, lastName, institutionCode, token]
+    properties:
+      studentId: { type: integer }
+      id: { type: string }
+      userId: { type: string }
+      schoolName: { type: string }
+      isSuperAdmin: { type: boolean, example: false }
+      isAllowDataImport: { type: boolean, example: false }
+      mustChangePassword: { type: boolean, example: false }
+      userType: { type: integer, example: 0 }
+      userImageToken: { type: string }
+      fullLog: { type: boolean, example: false }
+      firstName: { type: string }
+      lastName: { type: string }
+      isTeacher: { type: integer, example: 0 }
+      isWebTopUser: { type: boolean, example: false }
+      schoolId: { type: integer }
+      studentEmail:
+        type: string
+        format: email
+        maxLength: 254
+        example: user@example.com
+      studentGender:
+        type: boolean
+        example: false
+        description: "`false` means male and `true` means female."
+      firstInstitutionCode: { type: integer }
+      institutionCode: { type: integer }
+      isReseted: { type: boolean, example: false }
+      lastResetDate: { type: string }
+      lastPasswordChangeDate: { type: string }
+      lastLoginDate: { type: string }
+      classCode:
+        type: string
+        pattern: ^-?[0-9]+$
+        example: "12"
+        description: The student's grade level. For whatever reason it's a string representation of an integer.
+      classNumber: { type: integer }
+      isSchoolyAdministrator: { type: boolean, example: false }
+      token:
+        type: string
+        description: Session token to send as the webToken cookie.
+      cellphone: { type: string }
+      browserLanguage: { type: string }
+      initialUserType: { type: integer, example: 0 }
+      fullName: { type: string }
+      isOrt: { type: boolean, example: false }
+  ScheduleRequest:
+    type: object
+    required: [institutionCode, selectedValue, typeView]
+    properties:
+      institutionCode: { type: integer }
+      selectedValue:
+        type: string
+        examples: [10|2]
+        description: |
+          For a class, use the class code and class number separated by a pipe, such as `10|2`
+          for grade 10, class 2. The web client uses `100` if the class number is absent and
+          appends `|studentId` when a student ID is available. For teacher and room views,
+          send the corresponding ID as a string.
+      typeView:
+        type: integer
+        enum: [1, 2, 3]
+        description: Schedule view (1 for a class, 2 for a teacher, 3 for a room).
+  DaySchedule:
+    type: object
+    required: [dayIndex]
+    properties:
+      dayIndex: { type: integer }
+      hoursData:
+        type: array
+        items:
+          $ref: "#/$defs/HourData"
+        example: []
+  HourData:
+    type: object
+    properties:
+      hour: { type: integer, example: 0 }
+      hourName: { type: string }
+      scheduale:
+        type: array
+        items:
+          $ref: "#/$defs/Lesson"
+        example: []
+      changes:
+        type: array
+        items:
+          $ref: "#/$defs/LessonChange"
+        example: []
+      events:
+        type: array
+        items:
+          $ref: "#/$defs/EventItem"
+        example: []
+      exams:
+        type: array
+        items:
+          $ref: "#/$defs/ExamItem"
+        example: []
+  Lesson:
+    type: object
+    properties:
+      day: { type: integer, example: 0 }
+      hour: { type: integer, example: 0 }
+      roomID: { type: integer }
+      studyGroupID: { type: integer }
+      subject: { type: string }
+      subjectLevel: { type: string }
+      room: { type: string }
+      teacherPrivateName: { type: string }
+      teacherLastName: { type: string }
+      classes: { type: string }
+      changes:
+        type: array
+        items:
+          $ref: "#/$defs/LessonChange"
+        example: []
+  LessonChange:
+    type: object
+    properties:
+      definition: { type: string }
+      type: { type: string }
+      isClassCancel: { type: boolean, example: false }
+      group: { type: string }
+  EventItem:
+    type: object
+    properties:
+      definition: { type: string }
+  ExamItem:
+    type: object
+    properties:
+      definition: { type: string }
+  MessagesInboxRequest:
+    type: object
+    required: [LabelId, PageId, SearchQuery]
+    properties:
+      LabelId: { type: integer }
+      PageId:
+        type: integer
+        examples:
+          - 1
+        description: Page number, starting at 1.
+      SearchQuery:
+        type: string
+        default: ""
+        description: Query to filter with. Searches both titles and contents. Send an empty string to list the inbox without a filter.
+  InboxMessage:
+    type: object
+    required: [messageId]
+    properties:
+      typeID: { type: integer, example: 0 }
+      subject: { type: string }
+      sendingDate:
+        $ref: "#/$defs/LocalDateTime"
+      userTitle: { type: string }
+      student_F_name: { type: string }
+      student_L_name: { type: string }
+      userType: { type: integer, example: 0 }
+      classCode: { type: string }
+      classNumber: { type: integer, example: 0 }
+      hasRead: { type: integer, example: 0 }
+      filesWereAttached: { type: integer, example: 0 }
+      rowNumber: { type: integer, example: 0 }
+      count: { type: integer, example: 0 }
+      fromTitle: { type: string }
+      senderId: { type: string }
+      messageId: { type: string }
+      userImageToken: { type: string }
+  MessageDetailsRequest:
+    type: object
+    required: [FilterId, IsInBox, MessageId]
+    properties:
+      FilterId:
+        type: integer
+        description: Use 0 when opening a message from the inbox.
+      IsInBox:
+        type: boolean
+        description: Set to true when opening a message from the inbox.
+      MessageId: { type: string }
+  MessageDetails:
+    type: object
+    required: [messageData]
+    properties:
+      messageData:
+        $ref: "#/$defs/MessageData"
+      messagesCount: { type: integer }
+      roles: { type: string }
+  MessageData:
+    type: object
+    properties:
+      isSystemMessage: { type: boolean }
+      userImageToken: { type: string }
+      typeId: { type: integer, example: 0 }
+      subject: { type: string }
+      messageContent: { type: string }
+      institutionCode: { type: integer, example: 0 }
+      sendingDate:
+        $ref: "#/$defs/LocalDateTime"
+      attachedFile: { type: string }
+      attachedFile2: { type: string }
+      attachedFile3: { type: string }
+      attachedFile4: { type: string }
+      attachedFile5: { type: string }
+      isVisible: { type: boolean, example: true }
+      signedOn: { type: string }
+      signingClasses: { type: string }
+      filesWereAttached: { type: integer, example: 0 }
+      hiddenRecipients: { type: integer, example: 0 }
+      isMunicipal: { type: boolean }
+      privateName: { type: string }
+      lastName: { type: string }
+      userType: { type: integer, example: 0 }
+      recipientsName: { type: string }
+      fromTitle: { type: string }
+      totalRecipientsCount: { type: integer, example: 0 }
+      replyDisabled: { type: boolean }
+      filesList:
+        type: array
+        items:
+          $ref: "#/$defs/AttachedFile"
+        example: []
+      parentAllowSign: { type: boolean }
+      parentAllowSignDate: { type: string }
+      messageAlertId: { type: string }
+      routeData: { type: string }
+      fileName: { type: string }
+      routePage: { type: string }
+      senderId: { type: string }
+  AttachedFile:
+    type: object
+    required: [fileName, fileUrl]
+    properties:
+      id: { type: integer }
+      fileName: { type: string }
+      fileKey: { type: string }
+      fileUrl: { type: string }
+      fileExtantion: { type: string }
+      fileSize:
+        $ref: "#/$defs/FileSize"
+  FileSize:
+    type: object
+    properties:
+      size: { type: number, format: double, example: 0.0 }
+      sizeType:
+        type: integer
+        example: 0
+        description: This appears to be a file-size unit code. The mapping from codes to units is unknown.
+      sizeName:
+        type: string
+        description: Unit label displayed alongside the file size.
+  PupilCardSettingsRequest:
+    type: object
+    properties:
+      id:
+        type: integer
+        description: Study year. Omit this field to request settings for the current year.
+  PupilCardSettings:
+    type: object
+    required:
+      [
+        modulesList,
+        divisionsList,
+        children,
+        isParent,
+        numBackYearsAllowed,
+        currentStudyYear,
+      ]
+    properties:
+      modulesList:
+        type: array
+        items:
+          $ref: "#/$defs/PupilCardModuleSettings"
+      divisionsList:
+        type: array
+        items:
+          $ref: "#/$defs/PupilCardDivision"
+      children:
+        type: array
+        items:
+          $ref: "#/$defs/PupilCardChild"
+      isParent: { type: boolean }
+      numBackYearsAllowed: { type: integer }
+      currentStudyYear: { type: integer }
+  PupilCardModuleSettings:
+    type: object
+    required: [id, title, universalTitle, isLinked]
+    properties:
+      id: { type: integer }
+      title: { type: string }
+      universalTitle: { type: string }
+      isLinked: { type: integer }
+  PupilCardDivision:
+    type: object
+    required:
+      [
+        division_id,
+        division_name,
+        year_division,
+        from_date,
+        to_date,
+        isPublic,
+        isCurrent,
+        viewOrder,
+      ]
+    properties:
+      division_id: { type: integer }
+      division_name: { type: string }
+      year_division: { type: integer }
+      from_date:
+        $ref: "#/$defs/LocalDateTime"
+      to_date:
+        $ref: "#/$defs/LocalDateTime"
+      isPublic: { type: boolean }
+      isCurrent:
+        type: integer
+        description: Boolean as integer. `0` is `false`, `1` is true.
+      viewOrder: { type: integer }
+  PupilCardChild:
+    type: object
+    required: [id, firstName, lastName, classCode, classNum]
+    properties:
+      id: { type: string }
+      firstName: { type: string }
+      lastName: { type: string }
+      classCode: { type: integer }
+      classNum: { type: integer }
+      cellphone: { type: string }
+  DisciplineEventsRequest:
+    type: object
+    required: [studentID, moduleID]
+    properties:
+      studentID:
+        type: string
+        description: Same as `userId` from the login response.
+      studyYear:
+        type: integer
+        description: Study year selected in pupil card settings.
+      periodID:
+        type: integer
+        description: Selected division ID. The web client sends -1 when no divisions are available.
+      moduleID:
+        type: integer
+        default: 4
+        description: Use 4 for the discipline events module.
+  DisciplineEvents:
+    type: object
+    required: [diciplineEvents]
+    properties:
+      viewRemarkForParentPupil: { type: boolean }
+      canRequestJustification: { type: boolean }
+      behaviorGrade: {}
+      studentshipGrade: {}
+      canDelete: { type: boolean }
+      hours:
+        type: array
+        items:
+          $ref: "#/$defs/EventHour"
+      eventsTypes:
+        type: array
+        items:
+          $ref: "#/$defs/EventType"
+      diciplineEvents:
+        type: array
+        items:
+          $ref: "#/$defs/DisciplineEvent"
+      groups: {}
+  EventHour:
+    type: object
+    properties:
+      hour: { type: integer }
+      name: { type: string }
+      fromTime: { type: string }
+      toTime: { type: string }
+  EventType:
+    type: object
+    properties:
+      id: { type: integer }
+      name: { type: string }
+      enable_justification_request: { type: integer }
+      isPublic: { type: integer }
+      type_id: { type: integer }
+      whole_day_fill_enabled: { type: integer }
+      reportDisplay: { type: integer }
+      points_studentship: { type: integer }
+      points: { type: integer }
+      enableJustification: { type: boolean }
+      viewOrder: { type: integer }
+      automaticMessageSend: { type: integer }
+  DisciplineEvent:
+    type: object
+    required: [eventType, eventDate, isJustified, subjectName, hourName]
+    properties:
+      eventID: { type: integer }
+      eventType: { type: string }
+      eventCode: { type: integer }
+      eventDate:
+        $ref: "#/$defs/LocalDateTime"
+      allowJustification: { type: boolean }
+      enableJustified: { type: boolean }
+      isJustified: { type: boolean }
+      isRequestJustification: { type: boolean }
+      justifiedReason: { type: string }
+      justificationStatus: { type: boolean }
+      justificationID: { type: integer }
+      notJustified:
+        type: boolean
+        description: Does not map 1:1 to `!isJustified`.
+      subjectName: { type: string }
+      subjectCode: { type: integer }
+      subjectLevel: { type: string }
+      teacherName: { type: string }
+      hourNum: { type: integer }
+      hourName: { type: string }
+      remark: { type: string }
+      justifiedRemark: { type: string }
+      studyGroupID: { type: integer }
+      periodId: { type: integer }
+      eventTypeId: { type: integer }
+      lessonNums: { type: integer }
+      autoJustifyInEvents: { type: boolean }
+      idType: { type: integer }
+  GradesRequest:
+    type: object
+    required: [studyYear, studentID, moduleID]
+    properties:
+      weekIndex: { type: integer, default: 0 }
+      viewType: { type: integer, default: 0 }
+      studyYear:
+        type: integer
+        description: Study year to query. The server returns an empty grade list if this field is omitted.
+      studyYearName: { type: string }
+      studentID: { type: string }
+      studentName: { type: string }
+      classCode: { type: integer }
+      periodID:
+        type: integer
+        description: Division ID from pupil card settings. Filters grades to a specific semester.
+      periodName: { type: string }
+      moduleID:
+        type: integer
+        example: 6
+        description: Use the ID of the module whose `universalTitle` is `grades` in the pupil card settings.
+  Grade:
+    type: object
+    required: [teacherFirstName, teacherLastName]
+    properties:
+      evaluationID: { type: integer }
+      title: { type: string }
+      date:
+        $ref: "#/$defs/LocalDateTime"
+      type: { type: string }
+      typeCode: { type: integer }
+      teacherFirstName: { type: string }
+      teacherLastName: { type: string }
+      grade: { type: number, format: double }
+      subject: { type: string }
+      level: { type: string }
+      weight: { type: number, format: double }
+  PushRegistrationRequest:
+    type: object
+    required: [param2]
+    properties:
+      param2:
+        type: string
+        description: Push registration token. The Android app supplies its Firebase Cloud Messaging token.
+      param1:
+        type: string
+        example: android
+        enum: [android, ios]
+        description: Client platform.

@@ -1,0 +1,300 @@
+openapi: 3.1.1
+info:
+  title: WebTop API
+  version: 26.11.0
+  description: |
+    Unofficial reference for WebTop's API. Very incomplete at the moment, feel free to contribute.
+
+    Made as part of the [JetTop](https://github.com/doonv/JetTop) client.
+servers:
+  - url: https://webtopserver.smartschool.co.il
+security:
+  - WebToken: []
+tags:
+  - name: Session
+  - name: Schedule
+  - name: Messages
+  - name: Pupil card
+  - name: Notifications
+paths:
+  /server/api/user/LoginByUserNameAndPassword:
+    post:
+      operationId: login
+      parameters:
+        - $ref: "#/components/parameters/UserAgent"
+      tags: [Session]
+      summary: Sign in with a username and password
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "./schemas.yaml#/$defs/LoginRequest"
+      responses:
+        "2XX":
+          description: ""
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - required: [data]
+                    properties:
+                      data:
+                        $ref: "./schemas.yaml#/$defs/LoginData"
+                  - $ref: "./schemas.yaml#/$defs/ApiResponse"
+  /server/api/shotef/ShotefSchedualeData:
+    post:
+      operationId: getSchedule
+      parameters:
+        - $ref: "#/components/parameters/UserAgent"
+      tags: [Schedule]
+      summary: Get the current weekly schedule
+      description: |
+        The endpoint can return an empty week when the token expires. Use `checkToken` to tell whether the token
+        expired or the week is truly empty.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "./schemas.yaml#/$defs/ScheduleRequest"
+      responses:
+        "2XX":
+          description: ""
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - required: [data]
+                    properties:
+                      data:
+                        type: array
+                        description: Daily schedules for the week.
+                        items:
+                          $ref: "./schemas.yaml#/$defs/DaySchedule"
+                  - $ref: "./schemas.yaml#/$defs/ApiResponse"
+  /server/api/dashboard/CheckToken:
+    post:
+      operationId: checkToken
+      parameters:
+        - $ref: "#/components/parameters/UserAgent"
+      tags: [Session]
+      summary: Check the session token
+      description: Checks the token in the cookie and returns a boolean depending on its validity.
+      responses:
+        "2XX":
+          description: ""
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - required: [data]
+                    properties:
+                      data:
+                        type: boolean
+                        description: "`true` when the `webToken` cookie is valid."
+                  - $ref: "./schemas.yaml#/$defs/ApiResponse"
+  /server/api/Menu/GetMenuCounters:
+    post:
+      operationId: getMenuCounters
+      parameters:
+        - $ref: "#/components/parameters/UserAgent"
+      tags: [Notifications]
+      summary: Get unread message and notification counts
+      responses:
+        "2XX":
+          description: ""
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - required: [data]
+                    properties:
+                      data:
+                        $ref: "./schemas.yaml#/$defs/MenuCounters"
+                        description: Unread counts by category.
+                  - $ref: "./schemas.yaml#/$defs/ApiResponse"
+  /server/api/messageBox/GetMessagesInbox:
+    post:
+      operationId: getMessagesInbox
+      parameters:
+        - $ref: "#/components/parameters/UserAgent"
+      tags: [Messages]
+      summary: List inbox messages
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "./schemas.yaml#/$defs/MessagesInboxRequest"
+      responses:
+        "2XX":
+          description: ""
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - required: [data]
+                    properties:
+                      data:
+                        type: array
+                        maxItems: 30
+                        description: A page of up to 30 inbox messages.
+                        items:
+                          $ref: "./schemas.yaml#/$defs/InboxMessage"
+                  - $ref: "./schemas.yaml#/$defs/ApiResponse"
+        "401":
+          description: The session token has expired.
+  /server/api/messageBox/GetMessagesInboxData:
+    post:
+      operationId: getMessage
+      parameters:
+        - $ref: "#/components/parameters/UserAgent"
+      tags: [Messages]
+      summary: Get a message
+      description: Also automatically marks it as read.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "./schemas.yaml#/$defs/MessageDetailsRequest"
+      responses:
+        "2XX":
+          description: ""
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - required: [data]
+                    properties:
+                      data:
+                        $ref: "./schemas.yaml#/$defs/MessageDetails"
+                        description: Message content and attachment metadata.
+                  - $ref: "./schemas.yaml#/$defs/ApiResponse"
+  /server/api/PupilCard/GetSettingsList:
+    post:
+      operationId: getPupilCardSettings
+      parameters:
+        - $ref: "#/components/parameters/UserAgent"
+      tags: [Pupil card]
+      summary: Get pupil card settings for a study year
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "./schemas.yaml#/$defs/PupilCardSettingsRequest"
+      responses:
+        "2XX":
+          description: ""
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - required: [data]
+                    properties:
+                      data:
+                        $ref: "./schemas.yaml#/$defs/PupilCardSettings"
+                        description: Available modules, divisions, and children.
+                  - $ref: "./schemas.yaml#/$defs/ApiResponse"
+  /server/api/PupilCard/GetPupilDiciplineEvents:
+    post:
+      operationId: getDisciplineEvents
+      parameters:
+        - $ref: "#/components/parameters/UserAgent"
+      tags: [Pupil card]
+      summary: Get discipline events for the current study year
+      description: |
+        There seems to be a seemingly identical route to this one under `/server/api/dashboard/GetPupilDiciplineEvents`,
+        though it may behave different with larger lists of discipline events. More research is needed.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "./schemas.yaml#/$defs/DisciplineEventsRequest"
+      responses:
+        "2XX":
+          description: ""
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - required: [data]
+                    properties:
+                      data:
+                        $ref: "./schemas.yaml#/$defs/DisciplineEvents"
+                        description: Discipline events and related settings.
+                  - $ref: "./schemas.yaml#/$defs/ApiResponse"
+  /server/api/PupilCard/GetPupilGrades:
+    post:
+      operationId: getGrades
+      parameters:
+        - $ref: "#/components/parameters/UserAgent"
+      tags: [Pupil card]
+      summary: Get grades for a study year
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "./schemas.yaml#/$defs/GradesRequest"
+      responses:
+        "2XX":
+          description: ""
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - required: [data]
+                    properties:
+                      data:
+                        type: array
+                        description: Grades for the selected year and division.
+                        items:
+                          $ref: "./schemas.yaml#/$defs/Grade"
+                  - $ref: "./schemas.yaml#/$defs/ApiResponse"
+  /server/api/user/setRegistrationId:
+    post:
+      operationId: registerNotifications
+      parameters:
+        - $ref: "#/components/parameters/UserAgent"
+      tags: [Notifications]
+      summary: Register a token for push notifications
+      description: Used right after getting an FCM token from Webtop's Firebase project so that WebTop's servers can send notifications to the client.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "./schemas.yaml#/$defs/PushRegistrationRequest"
+      responses:
+        "2XX":
+          description: ""
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - properties:
+                      data:
+                        type: boolean
+                        description: Whether the request registration succeeded or not.
+                  - $ref: "./schemas.yaml#/$defs/ApiResponse"
+
+components:
+  securitySchemes:
+    WebToken:
+      type: apiKey
+      in: cookie
+      name: webToken
+  parameters:
+    UserAgent:
+      name: User-Agent
+      in: header
+      required: true
+      description: The server requires the user agent start with `Mozilla/` and be at least 40 characters long, otherwise you get blocked by CloudFront.
+      schema:
+        type: string
+      example: Mozilla/5.0 MyApp/1.0.0 (metadata or whatever)

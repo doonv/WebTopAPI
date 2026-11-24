@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>WebTop API reference</title>
+  <link rel="shortcut icon" href="favicon.svg" type="image/svg+xml">
+</head>
+
+<body>
+  <div id="app"></div>
+  <script src="https://cdn.jsdelivr.net/npm/@scalar/api-reference"></script>
+  <script>
+    Scalar.createApiReference('#app', {
+      url: './openapi.yaml',
+      hideTestRequestButton: true,
+      hideClientButton: true,
+      agent: { disabled: true },
+      showDeveloperTools: 'never',
+      forceDarkModeState: 'dark',
+      theme: 'kepler',
+      featuredClients: ["shell/curl", "kotlin/okhttp", "node/fetch", "python/requests"],
+      orderSchemaPropertiesBy: "preserve",
+      customCss: `
+        .dark-mode {
+          --scalar-color-accent: #8ABEFA;
+          --scalar-background-accent: #0D212F;
+        }
+          
+        .section-flare {
+          background: radial-gradient(
+            ellipse 80% 50% at 50% -20%,
+            color-mix(in srgb, #152D46 50%, transparent),
+            transparent
+          );
+        }
+
+        .github-link {
+          display: inline-grid;
+          place-items: center;
+          flex: none;
+          width: 28px;
+          height: 28px;
+          border-radius: 6px;
+          margin-inline-start: 8px;
+        }
+
+        .github-link:hover {
+          background: var(--scalar-background-2);
+        }
+
+        .github-link:focus-visible {
+          outline: 2px solid var(--scalar-color-accent);
+        }
+
+        .dark-mode .github-link img {
+          filter: invert(1);
+        }
+      `,
+
+      onLoaded() {
+        const footerRow = document.querySelector('#app .t-doc__sidebar .darklight-reference > .flex.items-center')
+        if (!footerRow || footerRow.querySelector('.github-link')) return
+
+        const link = document.createElement('a')
+        link.className = 'github-link'
+        link.href = 'https://github.com/doonv/WebTopAPI'
+        link.setAttribute('aria-label', 'View on GitHub')
+        link.title = 'View on GitHub'
+
+        const icon = document.createElement('img')
+        icon.src = 'https://raw.githubusercontent.com/primer/octicons/main/icons/mark-github-16.svg'
+        icon.alt = ''
+        icon.width = 16
+        icon.height = 16
+        link.append(icon)
+        footerRow.append(link)
+      },
+    })
+  </script>
+</body>
+
+</html>
